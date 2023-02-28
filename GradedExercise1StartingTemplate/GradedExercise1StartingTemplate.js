@@ -1,3 +1,9 @@
+/* Game Features:
+The game has multiple enemies: Small Sewer Rat 1, Small Sewer Rat 2, Small Sewer Rat 3 and The Dragon.
+When the player enters the hallway the enemy is randomized and when the player attacks the enemy,
+it is killed and gone from the hallways and then the other enemies are left. The player can look around again and
+can again encounter an enemy and can attack again.
+*/
 const prompts = require('prompts');
 
 const DOORWAY_MESSAGE = "There are doorways leading to:"
