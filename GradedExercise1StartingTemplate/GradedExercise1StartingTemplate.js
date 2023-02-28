@@ -1,103 +1,209 @@
 const prompts = require('prompts');
 
-class Car {
-  constructor(brand, model, registration) {
-      this.brand = brand;
-      this.model = model;
-      this.registration = registration;
-      this.speed = 0;
-  }
+const DOORWAY_MESSAGE = "There are doorways leading to:"
+const CHOOSE_ACTION = "Choose your action"
+const ENEMY_TO_ATTACK = "Which enemy you want to attack?"
+const ROOM_TO_GO = "Which room you want to go to?"
 
-  increaseSpeed() {
-      this.speed += 1;
-  }
+class Room {
+    constructor(name, description = '') {
+        this.name = name;
+        this.description = description;
+        this.accessibleRooms = [];
+        this.enemies = [];
+    }
 
-  decreaseSpeed() {
-      this.speed -= 1;
-  }
+    addEnemies(enemies) {
+        this.enemies = this.enemies.concat(enemies);
+    }
 
-  makeNoise() {
-      console.log('prum prum');        
-  }
+    addAccessibleRooms(rooms) {
+        this.accessibleRooms = this.accessibleRooms.concat(rooms);
+    }
 
-  displayInformation() {
-      console.log('Car: ' + this.brand + ', ' + this.model + ', speed: ' + this.speed);
-  }
 }
 
-class RaceCar extends Car {
-  constructor(brand, model, speed) {
-      super(brand, model, speed);
-  }
-
-  increaseSpeed() {
-      this.speed += 20;
-  }
-
-  startRace() {
-      console.log('Race car enters the race!');
-  }
+class Enemy {
+    constructor(name, hitPoints, attackDamagePoint, chancesOfAttack, weaponDescription) {
+        this.name = name;
+        this.hitPoints = hitPoints;
+        this.attackDamagePoint = attackDamagePoint;
+        this.chancesOfAttack = chancesOfAttack;
+        this.weaponDescription = weaponDescription;
+    }
+    attack(object) {
+        console.log(`${this.name} attacks ${object.name} with its ${this.weaponDescription}`);
+        const random = Math.ceil(Math.random() * 100);
+        if (this.chancesOfAttack >= random) {
+            console.log(`${this.name} hits ${object.name} with ${this.attackDamagePoint} points!`);
+            return this.attackDamagePoint;
+        }
+        console.log(`${this.name} attack misses!`);
+        return 0;
+    }
 }
 
-let audi = new Car('Audi', 'e-tron', 'ABC-123');
-audi.displayInformation();
-audi.increaseSpeed();
-audi.displayInformation();
+class Player extends Enemy {
+    constructor(room, hitPoints, attackDamagePoint, chancesOfAttack) {
+        super('Player', hitPoints, attackDamagePoint, chancesOfAttack, 'Sharp sword');
+        this.currentRoom = room;
+    }
+    setCurrentRoom(room) {
+        this.currentRoom = room;
+    }
 
-let f1 = new RaceCar('Mercedes', 'F1', '-');
-f1.displayInformation();
-f1.increaseSpeed();
-f1.displayInformation();
-f1.startRace();
+    attackByEnemy(enemy) {
+        if (enemy.hitPoints > 0) {
+            const attackPoints = enemy.attack(this)
+            this.hitPoints -= attackPoints;
+            this.hitPoints = Math.max(0, this.hitPoints);
+            if (attackPoints > 0)
+                console.log(`${this.name} is hit and has ${this.hitPoints} hitpoints remaining`);
+        }
+    }
 
-/* Above the same code what was used for class inheritance demonstratino
-   with Car and RaceCar classes and objects created from those two. 
-   Your task is to implement the dungeon adventure. The above is just an example.*/
+    lookAround() {
+        if (this.currentRoom.description) {
+            console.log('-----------------------');
+            console.log('You look around');
+            console.log(`You are in the ${this.currentRoom.name} and ${this.currentRoom.description}`);
+            console.log('');
+            console.log(DOORWAY_MESSAGE);
+            this.currentRoom.accessibleRooms.forEach(room => console.log(room.name))
+            console.log('\n');
+            if (this.currentRoom.enemies.length > 0) {
+                const enemy = this.currentRoom.enemies[Math.floor(Math.random() * this.currentRoom.enemies.length)]
+                console.log(`You see a ${enemy.name}`);
+                this.attackByEnemy(enemy);
+            }
+            console.log('-----------------------');
+        }
+    }
+
+    attackOnEnemy(enemy) {
+        const attackPoints = this.attack(enemy);
+        enemy.hitPoints -= attackPoints;
+        if (enemy.hitPoints <= 0) {
+            this.currentRoom.enemies = this.currentRoom.enemies.filter(enemyObj=>enemyObj !== enemy)
+        }
+    }
+
+}
+
+const dungeonEntrance = new Room('The dungeon', 'it is a big and damp room with broken statues all around')
+const hallway = new Room('Hallway', 'it is a long and dark hallway with dark pools of water on the floor and some fungus growing on the walls')
+const chamber = new Room('Chamber', 'it is a small chamber, which is illuminated by a glowing portal of somekind')
+const portal = new Room('Glowing portal')
+
+dungeonEntrance.addAccessibleRooms([hallway]);
+hallway.addAccessibleRooms([dungeonEntrance, chamber]);
+chamber.addAccessibleRooms([hallway, portal]);
+
+const sewerRat1 = new Enemy('Small sewer rat 1', 2, 1, 50, 'Sharp teeths')
+const sewerRat2 = new Enemy('Small sewer rat 2', 2, 1, 50, 'Sharp teeths')
+const sewerRat3 = new Enemy('Small sewer rat 3', 2, 1, 50, 'Sharp teeths')
+hallway.addEnemies(sewerRat1);
+hallway.addEnemies(sewerRat2);
+hallway.addEnemies(sewerRat3);
+
+const giantDragon = new Enemy('Giant Dragon', 4, 8, 90, 'Sharp claws and fire')
+chamber.addEnemies(giantDragon);
+
+const player = new Player(dungeonEntrance, 10, 2, 75)
+
+const getRequestFromPrompt = async (options) => prompts({
+    type: 'select',
+    name: 'value',
+    ...options
+});
+
+// Example set of UI options for the user to select
+const initialActionChoices = [{
+        title: 'Look around',
+        value: 'lookAround'
+    },
+    {
+        title: 'Go to Room',
+        value: 'goToRoom'
+    },
+    {
+        title: 'Attack',
+        value: 'attack'
+    },
+    {
+        title: 'Exit game',
+        value: 'exit'
+    }
+];
+
+let continueGame = true;
 
 async function gameLoop() {
-    let continueGame = true;
+    let message;
+    let choices
 
-    // Example set of UI options for the user to select
-    const initialActionChoices = [
-        { title: 'Accelerate e-tron', value: 'accelerateEtron' },
-        { title: 'Accelerate f1', value: 'accelerateF1' },
-        { title: 'Display Info', value: 'info'},
-        { title: 'Exit game', value: 'exit'}
-    ];
-
-    // Show the list of options for the user.
-    // The execution does not proceed from here until the user selects an option.
-    const response = await prompts({
-      type: 'select',
-      name: 'value',
-      message: 'Choose your action',
-      choices: initialActionChoices
+    const response = await getRequestFromPrompt({
+        message: CHOOSE_ACTION,
+        choices: initialActionChoices,
     });
 
     // Deal with the selected value
-    console.log('You selected ' + response.value);
-    switch(response.value) {
-      case 'accelerateEtron':
-        audi.increaseSpeed();
-        break;
-      
-      case 'accelerateF1':
-        f1.increaseSpeed();
-        break;
-      
-      case 'info':
-        audi.displayInformation();
-        f1.displayInformation();
-        break;
-      
-      case 'exit':
-        continueGame = false;
-        break;
+
+    switch (response.value) {
+        case 'lookAround':
+            player.lookAround();
+            break;
+
+        case 'goToRoom':
+            message = ROOM_TO_GO;
+            choices = player.currentRoom.accessibleRooms.map(accessibleRoom => ({
+                title: accessibleRoom.name,
+                value: accessibleRoom
+            }))
+            const newRoom = await getRequestFromPrompt({
+                message,
+                choices,
+            })
+            player.setCurrentRoom(newRoom.value);
+            console.log(`You move to ${newRoom.value.name}`);
+            player.lookAround();
+            break;
+
+        case 'attack':
+            message = ENEMY_TO_ATTACK;
+            choices = player.currentRoom.enemies.map(enemy => ({
+                title: enemy.name,
+                value: enemy
+            }))
+
+            if (choices.length) {
+                const enemyToAttack = await getRequestFromPrompt({
+                    message,
+                    choices,
+                })
+                player.attackOnEnemy(enemyToAttack.value);
+            } else {
+                console.log('No enemy in the room to attack!');
+            }
+            break;
+
+        case 'exit':
+            continueGame = false;
+            break;
     }
-    
-    if(continueGame) {
-      gameLoop();
-    }    
+
+    if (player.currentRoom === portal) {
+        console.log('Congratulations, you made through the dungeons!');
+        continueGame = false;
+    }
+
+    if (player.hitPoints <= 0)
+        continueGame = false;
+
+    if (continueGame) {
+        gameLoop();
+        continueGame = continueGame;
+    }
 }
 
 process.stdout.write('\033c'); // clear screen on windows
